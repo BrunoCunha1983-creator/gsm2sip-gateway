@@ -1,51 +1,58 @@
 $ErrorActionPreference = 'Stop'
+
 $Repo = 'BrunoCunha1983-creator/gsm2sip-gateway'
 $GoVersion = '1.23.12'
-$SourceName = 'GSM2Sip-Gateway-V1.0.3-Voice-Core-Source.zip'
-$Work = Join-Path $env:TEMP ('gsm2sip-build-' + [Guid]::NewGuid().ToString('N'))
-$Zip = Join-Path $Work $SourceName
+$Work = Join-Path $env:TEMP ('gsm2sip-install-' + [Guid]::NewGuid().ToString('N'))
+$Zip = Join-Path $Work 'source.zip'
 $Extract = Join-Path $Work 'source'
-New-Item -ItemType Directory -Path $Work -Force | Out-Null
 
-function Get-GoExe {
-    $existing = Get-Command go -ErrorAction SilentlyContinue
-    if ($existing) { return $existing.Source }
-    Write-Host "Go não encontrado. A descarregar Go $GoVersion temporariamente..." -ForegroundColor Yellow
-    $goZip = Join-Path $Work 'go.zip'
-    Invoke-WebRequest -Uri "https://go.dev/dl/go$GoVersion.windows-amd64.zip" -OutFile $goZip -UseBasicParsing
-    Expand-Archive -Path $goZip -DestinationPath $Work -Force
-    return (Join-Path $Work 'go\bin\go.exe')
-}
+New-Item -ItemType Directory -Path $Work,$Extract -Force | Out-Null
 
 try {
-    Write-Host 'GSM2Sip Gateway — Windows installer' -ForegroundColor Cyan
-    $srcUrl = "https://raw.githubusercontent.com/$Repo/main/windows/source/$SourceName"
-    Invoke-WebRequest -Uri $srcUrl -OutFile $Zip -UseBasicParsing
-    Expand-Archive -Path $Zip -DestinationPath $Extract -Force
-    $Root = Get-ChildItem -Path $Extract -Directory | Select-Object -First 1
-    if (-not $Root) { throw 'Não foi possível localizar o código extraído.' }
+    Write-Host '== GSM2Sip Gateway Windows =='
+    $chunkBase = "https://raw.githubusercontent.com/$Repo/main/windows/source/chunks"
+    $builder = New-Object System.Text.StringBuilder
+    foreach ($part in @('part00.b64','part01.b64','part02.b64')) {
+        Write-Host "A descarregar $part..."
+        $txt = (Invoke-WebRequest -UseBasicParsing "$chunkBase/$part").Content.Trim()
+        [void]$builder.Append($txt)
+    }
+    [IO.File]::WriteAllBytes($Zip, [Convert]::FromBase64String($builder.ToString()))
+    Expand-Archive $Zip $Extract -Force
 
-    $GoExe = Get-GoExe
+    $Root = Get-ChildItem $Extract -Directory | Select-Object -First 1
+    if (-not $Root) { throw 'Pacote source inválido.' }
     $AppDir = Join-Path $Root.FullName 'app'
     $InstallerDir = Join-Path $Root.FullName 'installer'
-    $AssetsDir = Join-Path $InstallerDir 'assets'
-    $AppExe = Join-Path $AssetsDir 'GSM2SipGateway.exe'
-    $SetupExe = Join-Path $Work 'GSM2Sip-Gateway-Setup.exe'
 
+    $go = Get-Command go -ErrorAction SilentlyContinue
+    if ($go) {
+        $GoExe = $go.Source
+    } else {
+        Write-Host "Go não encontrado. A usar Go $GoVersion temporariamente..."
+        if (-not [Environment]::Is64BitOperatingSystem) { throw 'Windows 32-bit não suportado.' }
+        $goZip = Join-Path $Work 'go.zip'
+        Invoke-WebRequest -UseBasicParsing "https://go.dev/dl/go$GoVersion.windows-amd64.zip" -OutFile $goZip
+        Expand-Archive $goZip $Work -Force
+        $GoExe = Join-Path $Work 'go\bin\go.exe'
+    }
+
+    $AppExe = Join-Path $InstallerDir 'assets\GSM2SipGateway.exe'
     Push-Location $AppDir
     & $GoExe build -trimpath -ldflags '-s -w -H=windowsgui' -o $AppExe .
-    if ($LASTEXITCODE -ne 0) { throw 'Falha a compilar a aplicação.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Falhou a compilação da aplicação.' }
     Pop-Location
 
+    $Setup = Join-Path $Work 'GSM2Sip-Gateway-Setup.exe'
     Push-Location $InstallerDir
-    & $GoExe build -trimpath -ldflags '-s -w -H=windowsgui' -o $SetupExe .
-    if ($LASTEXITCODE -ne 0) { throw 'Falha a compilar o instalador.' }
+    & $GoExe build -trimpath -ldflags '-s -w -H=windowsgui' -o $Setup .
+    if ($LASTEXITCODE -ne 0) { throw 'Falhou a compilação do instalador.' }
     Pop-Location
 
-    Write-Host 'Compilação concluída. A iniciar o instalador...' -ForegroundColor Green
-    Start-Process -FilePath $SetupExe -Wait
+    Write-Host 'A iniciar o instalador GSM2Sip Gateway...'
+    Start-Process -FilePath $Setup -Wait
 }
 finally {
     Pop-Location -ErrorAction SilentlyContinue
-    if (Test-Path $Work) { Remove-Item $Work -Recurse -Force -ErrorAction SilentlyContinue }
+    Remove-Item $Work -Recurse -Force -ErrorAction SilentlyContinue
 }
