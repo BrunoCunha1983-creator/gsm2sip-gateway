@@ -1,0 +1,3 @@
+7123fa744d7ae7624e124d5900016b0c580d9b97eba0100ba5b1005ecf7f592e  windows/source/GSM2Sip-Gateway-V1.0.3-Voice-Core-Source.zip
+98d7302cbfa79e087d7b74e3aa0f3da7bba2047814edd92de9a0ce5c8f6ce1ee  linux-debian/source/GSM2Sip-Gateway-V1.0.3-PVE-Host-pve2-Source.zip
+89a1e29ea1c34eb9e8e5b65e4a816703fac6b13af67e3c45ddc94af8604b66d8  linux-debian/source/GSM2Sip-Gateway-V1.0.3-Voice-Core-Linux-Debian-Source.zip
