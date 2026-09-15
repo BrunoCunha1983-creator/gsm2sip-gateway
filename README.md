@@ -2,58 +2,56 @@
 
 Gateway GSM USB ↔ SIP para Windows, Debian/Linux e Proxmox VE.
 
-O objetivo é transformar modems USB GSM compatíveis com voz em trunks SIP normais para PBXs como Asterisk, FreePBX, Issabel e 3CX.
+O projeto transforma modems USB GSM compatíveis com voz em trunks SIP normais para PBXs como Asterisk, FreePBX, Issabel e 3CX.
 
-## Estrutura
+## Plataformas separadas
 
-- `windows/` — aplicação e instalador Windows.
-- `linux-debian/` — Debian/Linux e variante para instalação direta no host Proxmox VE.
+```text
+windows/       → Windows
+linux-debian/  → Debian / Linux / Proxmox VE Host
+```
 
-As duas versões partilham o mesmo conceito funcional, mas os instaladores e a camada de hardware estão separados.
+Cada plataforma tem código de hardware, script de instalação, build e documentação próprios.
 
-## Estado atual
+## Instalação Proxmox VE / Debian
 
-Versão de desenvolvimento V1.0.3 Voice Core:
-
-- deteção USB e portas série;
-- agrupamento das várias interfaces do mesmo modem físico;
-- identificação AT;
-- suporte inicial Huawei Legacy/CVOICE;
-- SIP com porta configurável e escuta apenas em endereços privados;
-- conta por modem (`gsm01`, `gsm02`, ...);
-- preparação de áudio PCM 8 kHz para RTP/G.711.
-
-O bridge RTP↔PCM e chamadas GSM completas ainda estão em desenvolvimento.
-
-## Instalação rápida
-
-### Proxmox VE / Debian
-
-Na raiz do Proxmox:
+Como `root`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/BrunoCunha1983-creator/gsm2sip-gateway/main/linux-debian/install.sh | bash
 ```
 
-O script deteta Proxmox VE e escolhe automaticamente o pacote PVE Host. `usb-modeswitch` e `usb-modeswitch-data` são instalados como dependências.
+O instalador integra `usb-modeswitch` e `usb-modeswitch-data`, deteta automaticamente Proxmox VE e instala o serviço `systemd` adequado.
 
-### Windows PowerShell
+## Instalação Windows
 
-Abrir PowerShell e executar:
+PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/BrunoCunha1983-creator/gsm2sip-gateway/main/windows/install.ps1 | iex
 ```
 
-O script descarrega o instalador Windows desta versão e executa-o.
+## Estado atual — V1.0.3 Voice Core
 
-## Segurança de rede
+- deteção USB e interfaces série;
+- modo modem/ZeroCD no Linux através de `usb-modeswitch`;
+- agrupamento das interfaces do mesmo modem físico;
+- sonda AT;
+- Huawei Legacy/CVOICE;
+- uma conta SIP por modem (`gsm01`, `gsm02`, ...);
+- um IP privado + uma porta SIP configurável;
+- preparação PCM 8 kHz/16-bit/20 ms para RTP G.711.
 
-- SIP usa uma porta configurável.
-- `0.0.0.0` e endereços públicos são bloqueados pela aplicação.
-- A interface Web de administração escuta apenas em `127.0.0.1:8790` nesta fase.
-- O instalador Linux não altera bridges, `/etc/network/interfaces`, `pve-firewall`, VMs ou CTs.
+O media bridge RTP↔PCM e a chamada GSM completa continuam em desenvolvimento.
 
-## Licença / desenvolvimento
+## Segurança
 
-Projeto em desenvolvimento. Antes de produção, validar interoperabilidade SIP, RTP, áudio USB/serial e comportamento do modem com a operadora usada.
+- a aplicação recusa `0.0.0.0` e IPs públicos para SIP;
+- a porta SIP é programável;
+- interface administrativa atual: `127.0.0.1:8790`;
+- o instalador PVE não modifica bridges, firewall do Proxmox, VMs ou CTs.
+
+## Código
+
+- `windows/source/` — source package completo da edição Windows;
+- `linux-debian/source/` — source packages Linux/Debian e PVE Host.
