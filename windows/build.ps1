@@ -1,11 +1,17 @@
 $ErrorActionPreference = 'Stop'
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$SourceZip = Join-Path $Here 'source\GSM2Sip-Gateway-V1.0.3-Voice-Core-Source.zip'
 $Work = Join-Path $env:TEMP ('gsm2sip-local-build-' + [Guid]::NewGuid().ToString('N'))
 $Extract = Join-Path $Work 'source'
+$SourceZip = Join-Path $Work 'source.zip'
 $Dist = Join-Path $Here 'dist'
+$ChunkDir = Join-Path $Here 'source\chunks'
 New-Item -ItemType Directory -Path $Extract,$Dist -Force | Out-Null
 try {
+    $builder = New-Object System.Text.StringBuilder
+    Get-ChildItem $ChunkDir -Filter 'part*.b64' | Sort-Object Name | ForEach-Object {
+        [void]$builder.Append(([IO.File]::ReadAllText($_.FullName)).Trim())
+    }
+    [IO.File]::WriteAllBytes($SourceZip, [Convert]::FromBase64String($builder.ToString()))
     Expand-Archive $SourceZip $Extract -Force
     $Root = Get-ChildItem $Extract -Directory | Select-Object -First 1
     $AppDir = Join-Path $Root.FullName 'app'
